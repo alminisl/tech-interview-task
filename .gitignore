@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Go
+server/server
+server/*.exe
+*.test
+
+# Potree build artifacts (built locally, not committed)
+potree/build/
+potree/node_modules/
+
+# Local point cloud cache
+*.copc.laz
+*.las
+*.laz
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
