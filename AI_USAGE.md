@@ -36,7 +36,26 @@ Stack decided up front: **Potree** frontend (served statically over HTTP),
 
 ## Implementation phase
 
-_(to be filled in as we build)_
+### Step 1 — viewer loads and is readable
+
+**What I asked AI to do**
+- Pull Potree in as a git submodule (keeps our repo to just our own code, pins a
+  Potree version) and build it. Verified `libs/copc` ships in the build, so COPC is
+  supported without conversion.
+- Write our own viewer page (`frontend/index.html`) from Potree's `examples/copc.html`,
+  changing two things: elevation coloring is set unconditionally on load (requirement),
+  and the source defaults to the SoFi URL with a `?src=local` override for fast
+  iteration against the small bundled `lion_takanawa.copc.laz`.
+- Write a single Go server (`server/main.go`) that serves the project root. Chosen
+  because `http.FileServer` answers HTTP Range requests (what COPC needs) and the same
+  server will later host the `/ws` WebSocket — one origin, no CORS, one command to run.
+
+**What I verified manually / with tooling**
+- Go server builds and runs.
+- `curl` against the running server: viewer page `200`, `potree.js` `200`, and a
+  `Range: bytes=0-99` request on the local COPC sample returns `206 Partial Content`
+  with `Content-Range: bytes 0-99/2735983` — range streaming confirmed.
+- (pending, needs a browser) SoFi renders readably with elevation coloring.
 
 ---
 
