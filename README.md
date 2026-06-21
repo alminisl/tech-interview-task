@@ -4,7 +4,6 @@ Multiple browser tabs load the same COPC point cloud and share camera position a
 view direction in real time. Each tab shows where the other tabs are looking in 3D via
 a view cone.
 
-> Status: work in progress.
 
 ## Stack
 
