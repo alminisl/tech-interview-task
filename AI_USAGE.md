@@ -61,4 +61,24 @@ Stack decided up front: **Potree** frontend (served statically over HTTP),
 
 ## Testing phase
 
-_(to be filled in as we test — including the two-tab walkthrough)_
+### Sync layer (automated — passing)
+
+- Wrote a Go integration test (`server/sync_test.go`) that drives the hub through the
+  exact behaviours the task lists: client A connects (init, no peers) → client B
+  connects and sees A in its init peer list → A sends a camera update and B receives it
+  → A disconnects and B receives a `leave` for A. `go test ./...` passes.
+- Smoke-tested the running binary with curl: viewer page, `sync.js`, `potree.js` and
+  `three.module.js` all return `200`; `/ws` returns `101 Switching Protocols` with a
+  valid `Sec-WebSocket-Accept` and immediately pushes the `init` frame
+  (`{"type":"init","id":"peer-1","color":"#e6194b","peers":[]}`).
+- Verified the frontend's Potree API calls against the submodule source before relying
+  on them: `viewer.scene.getActiveCamera()` (scene.js:339), `viewer.scene.scene` is the
+  THREE scene Potree renders (scene.js:17), `pointcloud.boundingBox` is a `Box3`
+  (PointCloudOctree.js:109).
+
+### Visual two-tab test (needs a browser — human verification)
+
+The one thing that can't be checked headlessly is the WebGL rendering: whether the
+cloud is readable with elevation coloring, and whether moving the camera in tab A
+visibly moves the cone in tab B (and the cone disappears when A closes). Steps for this
+are in the README "How to test with two browser tabs" section.
