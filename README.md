@@ -106,3 +106,12 @@ I used Claude (in Claude Code) throughout, and drove the decisions myself:
   guessing, and to verify the frontend Potree calls against the submodule source.
 - To scaffold the project, write the Go hub boilerplate and the viewer page, and produce
   the architecture diagrams.
+
+### What I verified manually
+
+- **Tests** (`server/sync_test.go`): the hub's join / camera-update / disconnect / rename
+  flow. These caught a real 64-bit atomic-alignment panic on 32-bit Go.
+- **curl** against the running server: assets `200`, COPC range requests `206`, and `/ws`
+  a real `101` upgrade with the `init` frame.
+- **Two browser tabs** by hand: moving the camera moves the peer's cone within ~1s,
+  names sync, and closing a tab removes its cone and list entry.
