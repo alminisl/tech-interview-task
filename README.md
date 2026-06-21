@@ -61,3 +61,62 @@ To verify the realtime layer on its own (no browser), run the server tests:
 cd server
 go test ./...
 ```
+
+## Approach
+
+### How I scoped it
+
+I built it in the order the requirements depend on each other, and committed in stages
+so the history shows the evolution:
+
+1. **Viewer first.** Get the COPC cloud loading and readable (elevation coloring on by
+   default) *before* writing any sync code — a broken viewer would make debugging the
+   sync layer miserable.
+2. **Sync layer.** A WebSocket hub that handles multiple clients, new-joiner state, live
+   updates, and disconnect cleanup.
+3. **Peer presence.** Render each peer as a view cone in the 3D scene.
+4. **Polish.** Peer-list overlay with names and last-seen, stable per-peer colors,
+   throttling.
+
+Key decisions:
+
+- **Potree** for the frontend — the task's recommended path; it handles COPC HTTP-range
+  streaming, level-of-detail, and elevation coloring out of the box, so the time went
+  into the sync layer rather than into building a renderer. It's pulled in as a git
+  submodule so this repo stays to just my own code.
+- **Go** for the backend, using the classic hub pattern: a single goroutine owns all
+  shared state and everything else talks to it over channels, so there are no mutexes.
+  Each connection has a read pump and a write pump with a buffered channel between them,
+  so one slow client can't stall the hub.
+- **One binary** serves both the static frontend and the `/ws` endpoint — `http.FileServer`
+  answers the HTTP range requests COPC needs, and a single origin means no CORS and one
+  command to run.
+- **A cone** for presence — it communicates both position and view direction in one
+  primitive. The apex sits at the peer's eye and it opens along their look direction.
+- **Coordinate frames:** peer camera positions are only comparable because every client
+  loads the same COPC the same way, so raw world coordinates need no per-client offset.
+
+### What I asked AI to do
+
+I used Claude (in Claude Code) throughout, and drove the decisions myself:
+
+- Up front, to pressure-test the task and surface the traps before coding (the 2 GB
+  file, elevation-on-load, disconnect cleanup, and the coordinate-frame issue).
+- To confirm the current Potree COPC API against its own `examples/copc.html` rather than
+  guessing, and to verify the frontend Potree calls against the submodule source.
+- To scaffold the project, write the Go hub boilerplate and the viewer page, and produce
+  the architecture diagrams.
+
+### What I verified manually
+
+- **Automated tests** (`server/sync_test.go`) drive the hub through the exact required
+  behaviours: a client joins and sees existing peers, a camera update reaches another
+  client, and a disconnect produces a `leave`. A second test covers name broadcasts.
+  These caught a real bug — a 64-bit atomic-alignment panic on 32-bit Go that surfaced
+  when a struct field was reordered.
+- **Smoke-tested the running server** with curl: static assets return `200`, COPC range
+  requests return `206 Partial Content`, and `/ws` performs a real `101` WebSocket
+  upgrade and pushes the `init` frame.
+- **Two browser tabs**, by hand: moving the camera in one tab moves its cone in the
+  other within ~1 second, setting a name updates the other tab's peer list, and closing
+  a tab removes its cone and list entry.
