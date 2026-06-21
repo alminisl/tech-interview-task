@@ -22,12 +22,10 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", fs)
 
-	// Realtime camera-sharing endpoint.
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWS(hub, w, r)
 	})
 
-	// Convenience: open "/" straight into the viewer.
 	mux.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/frontend/", http.StatusFound)
 	})

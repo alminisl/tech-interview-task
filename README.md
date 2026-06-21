@@ -50,8 +50,7 @@ For fast local iteration, append `?src=local` to load a tiny sample shipped with
 
 ## How to test with two browser tabs
 
-1. Start the server and open <http://localhost:8080/frontend/?src=local> in **tab A**
-   (use `?src=local` for an instant load while testing).
+1. Start the server and open <http://localhost:8080/frontend> in **tab A**
 2. Open the same URL in **tab B**.
 3. Move/orbit the camera in tab A → within ~1 second a colored view cone in tab B moves
    to show where tab A is looking. Do the same in B → A sees B's cone.
@@ -63,8 +62,3 @@ To verify the realtime layer on its own (no browser), run the server tests:
 cd server
 go test ./...
 ```
-
-## Approach
-
-See [AI_USAGE.md](./AI_USAGE.md) for the full phase-by-phase log of how this was built
-and how AI was used. A condensed Approach section will land here.
