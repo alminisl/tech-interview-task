@@ -25,6 +25,7 @@ type CameraState struct {
 type PeerState struct {
 	ID     string       `json:"id"`
 	Color  string       `json:"color"`
+	Name   string       `json:"name"`
 	Camera *CameraState `json:"camera,omitempty"`
 }
 
@@ -34,15 +35,26 @@ type inbound struct {
 	camera CameraState
 }
 
+// renameReq is a display-name change arriving from a client.
+type renameReq struct {
+	client *Client
+	name   string
+}
+
 // Hub keeps the set of connected clients and fans camera state out between them.
 // All state lives in one goroutine (run), so no locks are needed on the maps.
 type Hub struct {
+	// nextID is accessed atomically; it must stay the first field so it is
+	// 64-bit aligned on 32-bit platforms (Go only guarantees alignment for the
+	// first word of a struct).
+	nextID int64
+
 	clients    map[*Client]bool
 	register   chan *Client
 	unregister chan *Client
 	updates    chan inbound
+	rename     chan renameReq
 
-	nextID  int64
 	palette []string
 }
 
@@ -52,6 +64,7 @@ func newHub() *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		updates:    make(chan inbound),
+		rename:     make(chan renameReq),
 		// Distinct, well-spaced hues so each peer gets a stable, readable color.
 		palette: []string{
 			"#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4",
@@ -91,7 +104,17 @@ func (h *Hub) run() {
 				"type":   "peer",
 				"id":     in.client.id,
 				"color":  in.client.color,
+				"name":   in.client.name,
 				"camera": in.camera,
+			}))
+
+		case rn := <-h.rename:
+			rn.client.name = rn.name
+			// Tell everyone else this peer's new display name.
+			h.broadcast(rn.client, mustJSON(map[string]any{
+				"type": "name",
+				"id":   rn.client.id,
+				"name": rn.name,
 			}))
 		}
 	}
@@ -104,7 +127,7 @@ func (h *Hub) peerList(except *Client) []PeerState {
 		if c == except {
 			continue
 		}
-		peers = append(peers, PeerState{ID: c.id, Color: c.color, Camera: c.camera})
+		peers = append(peers, PeerState{ID: c.id, Color: c.color, Name: c.name, Camera: c.camera})
 	}
 	return peers
 }

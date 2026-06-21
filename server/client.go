@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,6 +30,7 @@ type Client struct {
 	send  chan []byte
 	id    string
 	color string
+	name  string
 	// camera is the last camera state we received, handed to new joiners.
 	camera *CameraState
 }
@@ -37,7 +39,10 @@ type Client struct {
 type clientMessage struct {
 	Type   string      `json:"type"`
 	Camera CameraState `json:"camera"`
+	Name   string      `json:"name"`
 }
+
+const maxNameLen = 32
 
 func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -46,7 +51,8 @@ func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id, color := hub.assign()
-	c := &Client{hub: hub, conn: conn, send: make(chan []byte, 16), id: id, color: color}
+	// Default display name is the id until the user picks one.
+	c := &Client{hub: hub, conn: conn, send: make(chan []byte, 16), id: id, color: color, name: id}
 	hub.register <- c
 
 	go c.writePump()
@@ -77,8 +83,18 @@ func (c *Client) readPump() {
 		if err := json.Unmarshal(data, &msg); err != nil {
 			continue
 		}
-		if msg.Type == "camera" {
+		switch msg.Type {
+		case "camera":
 			c.hub.updates <- inbound{client: c, camera: msg.Camera}
+		case "name":
+			name := strings.TrimSpace(msg.Name)
+			if name == "" {
+				continue
+			}
+			if len(name) > maxNameLen {
+				name = name[:maxNameLen]
+			}
+			c.hub.rename <- renameReq{client: c, name: name}
 		}
 	}
 }

@@ -102,3 +102,21 @@ func TestSyncFlow(t *testing.T) {
 		t.Fatalf("B got %v/%v, want leave for A", leaveMsg["type"], leaveMsg["id"])
 	}
 }
+
+func TestRenameBroadcast(t *testing.T) {
+	url := startTestServer(t)
+
+	a := dial(t, url)
+	aInit := readMsg(t, a)
+	aID := aInit["id"].(string)
+
+	b := dial(t, url)
+	readMsg(t, b) // B's init
+
+	// A sets a display name; B must be told about it.
+	a.WriteJSON(map[string]any{"type": "name", "name": "Alice"})
+	nameMsg := readMsg(t, b)
+	if nameMsg["type"] != "name" || nameMsg["id"] != aID || nameMsg["name"] != "Alice" {
+		t.Fatalf("B got %v, want name=Alice for A", nameMsg)
+	}
+}
