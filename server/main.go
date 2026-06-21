@@ -16,15 +16,23 @@ func main() {
 	// is what COPC streaming relies on.
 	fs := http.FileServer(http.Dir(*root))
 
+	hub := newHub()
+	go hub.run()
+
 	mux := http.NewServeMux()
 	mux.Handle("/", fs)
+
+	// Realtime camera-sharing endpoint.
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWS(hub, w, r)
+	})
 
 	// Convenience: open "/" straight into the viewer.
 	mux.HandleFunc("/index.html", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/frontend/", http.StatusFound)
 	})
 
-	log.Printf("serving %s on http://localhost%s (viewer at /frontend/)", *root, *addr)
+	log.Printf("serving %s on http://localhost%s (viewer at /frontend/, ws at /ws)", *root, *addr)
 	if err := http.ListenAndServe(*addr, mux); err != nil {
 		log.Fatal(err)
 	}
